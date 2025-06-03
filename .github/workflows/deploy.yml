@@ -23,9 +23,33 @@ jobs:
     - name: Deploy to EC2
       run: |
         ssh -i ~/.ssh/id_rsa ec2-user@35.154.110.22 << 'EOF'
-          cd /home/ec2-user/aiassist
+          set -e
+
+          APP_DIR="/home/ec2-user/aiassist"
+
+          # Clone repo if not exists
+          if [ ! -d "$APP_DIR" ]; then
+            git clone https://github.com/akdevlopers/aiassist.git "$APP_DIR"
+          fi
+
+          cd "$APP_DIR"
           git pull origin main
+
+          # Ensure Python & pip
+          sudo yum install -y python3
+          sudo alternatives --install /usr/bin/python python /usr/bin/python3 1
+          sudo alternatives --install /usr/bin/pip pip /usr/bin/pip3 1
+
+          # Create virtualenv if not exists
+          if [ ! -d "venv" ]; then
+            python -m venv venv
+          fi
+
           source venv/bin/activate
+          pip install --upgrade pip
           pip install -r requirements.txt
+
+          # Restart Gunicorn service
+          sudo systemctl daemon-reexec
           sudo systemctl restart myapp
         EOF
